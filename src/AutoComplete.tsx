@@ -9,6 +9,10 @@ const AutoComplete: React.FC = () => {
   const [inputValue, setInputValue] = useState<string>('');
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isDropdownVisible, setIsDropdownVisible] = useState(false);
+
+  const autocompleteRef = React.useRef<HTMLDivElement | null>(null);
+
 
   const fetchSuggestions = React.useCallback(async (input: string) => {
     setIsLoading(true);
@@ -39,7 +43,7 @@ const AutoComplete: React.FC = () => {
   };
 
   useEffect(() => {
-    document.title = "AutoComplete - Deel";
+    document.title = "AutoComplete";
 
     if (!inputValue) {
       setSuggestions([]);
@@ -47,38 +51,65 @@ const AutoComplete: React.FC = () => {
     }
 
     fetchSuggestions(inputValue);
+
+    const handleClickOutside = (event: { target: any; }) => {
+      if (autocompleteRef.current && !autocompleteRef.current.contains(event.target)) {
+        setIsDropdownVisible(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
   }, [fetchSuggestions, inputValue]);
 
+  // Example function to handle input change and debounce logic
+  const handleChange = (event: { target: { value: React.SetStateAction<string>; }; }) => {
+    setInputValue(event.target.value);
+    setIsDropdownVisible(true);
+    // Implement debounce logic here
+  };
+
+  const handleSelectSuggestion = (suggestion: string) => {
+    setInputValue(suggestion);
+    setIsDropdownVisible(false); // Close the dropdown when a suggestion is selected
+  };
+
   return (
-    <div>
+    <div ref={autocompleteRef}>
       <h2>Auto Complete Component Example</h2>
       <span className='input-title'>Search user names:</span><br></br>
-      <input
-        type="text"
-        data-testid="searchInputID"
-        value={inputValue}
-        onChange={(e) => setInputValue(e.target.value)}
-        placeholder="Type to search..."
-      />
-      {isLoading ? (
-        <div>Loading...</div>
-      ) : (
-        <ul data-testid="resultsID">
-          {suggestions.map((suggestion) => {
-            const [before, match, after] = highlightMatch(
-              suggestion.name,
-              inputValue
-            );
-            return (
-              <li key={suggestion.id}>
-                {before}
-                <span className='highlight-match'>{match}</span>
-                {after}
-              </li>
-            );
-          })}
-        </ul>
-      )}
+      <div className='autocomplete-container'>
+        <input
+          className="input-field"
+          type="text"
+          data-testid="searchInputID"
+          value={inputValue}
+          onChange={handleChange}
+          placeholder="Type to search..."
+        />
+        {isLoading ? (
+          <div>Loading...</div>
+        ) : isDropdownVisible && suggestions.length > 0 && (
+          <ul data-testid="resultsID" className="suggestions-dropdown">
+            {suggestions.map((suggestion, index) => {
+              const [before, match, after] = highlightMatch(
+                suggestion.name,
+                inputValue
+              );
+              return (
+                <li key={index} className='suggestion-item' onClick={() => handleSelectSuggestion(suggestion.name)}>
+                  {before}
+                  <span className='highlight-match'>{match}</span>
+                  {after}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        {inputValue && !isLoading && !suggestions.length && <div className="error-message">No results</div>}
+      </div>
     </div>
   );
 };
